@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galactic Explorer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Arial', sans-serif;
+            color: #fff;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #game-world {
+            position: absolute;
+            width: 4000px;
+            height: 4000px;
+            transform-origin: 0 0;
+        }
+        
+        #starfield {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        
+        #ui-container {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #30a0ff;
+            width: 200px;
+        }
+        
+        #ship {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2330a0ff"><path d="M12 2L4 22h16L12 2zm0 5l4.5 12h-9L12 7z"/></svg>');
+            background-size: contain;
+            background-repeat: no-repeat;
+            z-index: 5;
+            transition: transform 0.1s ease-out;
+            transform: rotate(0deg);
+        }
+        
+        .planet {
+            position: absolute;
+            border-radius: 50%;
+            box-shadow: inset -5px -5px 10px rgba(0,0,0,0.5);
+            z-index: 2;
+        }
+        
+        .star {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            z-index: 1;
+        }
+
+        .enemy {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ff3030"><path d="M12 2L2 12l10 10 10-10L12 2zm0 6l4 4-4 4-4-4 4-4z"/></svg>');
+            background-size: contain;
+            background-repeat: no-repeat;
+            z-index: 4;
+            transition: transform 0.1s ease-out;
+        }
+
+        .projectile {
+            position: absolute;
+            width: 4px;
+            height: 10px;
+            background-color: #30ff30;
+            border-radius: 2px;
+            z-index: 3;
+        }
+
+        .explosion {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2L15 9 22 12 15 15 12 22 9 15 2 12 9 9z" fill="%23ffcc00"/></svg>');
+            background-size: contain;
+            background-repeat: no-repeat;
+            z-index: 6;
+            animation: explode 0.5s forwards;
+        }
+
+        @keyframes explode {
+            0% { transform: scale(0.5); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        
+        #message-box {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            border: 1px solid #30a0ff;
+            border-radius: 5px;
+            padding: 10px 20px;
+            z-index: 1000;
+            display: none;
+            max-width: 80%;
+        }
+
+        #minimap {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            width: 150px;
+            height: 150px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border: 1px solid #30a0ff;
+            border-radius: 3px;
+            z-index: 1000;
+        }
+
+        #minimap-player {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background-color: #30a0ff;
+            border-radius: 50%;
+            z-index: 2;
+        }
+
+        .minimap-planet {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background-color: #ffffff;
+            border-radius: 50%;
+            z-index: 1;
+        }
+
+        .minimap-enemy {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background-color: #ff3030;
+            border-radius: 50%;
+            z-index: 1;
+        }
+        
+        button {
+            background-color: #1a5b91;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            margin: 5px 0;
+            border-radius: 3px;
+            cursor: pointer;
+            width: 100%;
+        }
+        
+        button:hover {
+            background-color: #30a0ff;
+        }
+        
+        #resource-bar {
+            margin-top: 10px;
+        }
+        
+        .resource {
+            margin-bottom: 5px;
+        }
+        
+        .planet-info {
+            display: none;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #30a0ff;
+        }
+        
+        #planet-actions {
+            margin-top: 10px;
+        }
+        
+        .progress-bar {
+            height: 5px;
+            width: 100%;
+            background-color: #111;
+            margin-top: 2px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background-color: #30a0ff;
+        }
+
+        #combat-stats {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #30a0ff;
+        }
+
+        #game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            display: none;
+        }
+
+        #game-over h2 {
+            color: #ff3030;
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+
+        #game-over button {
+            width: 200px;
+            padding: 10px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="game-world">
+            <canvas id="starfield"></canvas>
+            <div id="ship"></div>
+        </div>
+        
+        <div id="ui-container">
+            <h3 style="margin: 0 0 10px 0;">Galactic Explorer</h3>
+            <div>Position: <span id="position">0, 0</span></div>
+            <div>Speed: <span id="speed">0</span></div>
+            
+            <div id="resource-bar">
+                <div class="resource">Fuel: <span id="fuel">100</span>%
+                    <div class="progress-bar"><div id="fuel-fill" class="progress-fill" style="width: 100%;"></div></div>
+                </div>
+                <div class="resource">Cargo: <span id="cargo">0</span>/100
+                    <div class="progress-bar"><div id="cargo-fill" class="progress-fill" style="width: 0%;"></div></div>
+                </div>
+                <div class="resource">Health: <span id="health">100</span>%
+                    <div class="progress-bar"><div id="health-fill" class="progress-fill" style="width: 100%;"></div></div>
+                </div>
+                <div class="resource">Credits: <span id="credits">500</span></div>
+            </div>
+            
+            <div id="planet-info" class="planet-info">
+                <div>Name: <span id="planet-name"></span></div>
+                <div>Type: <span id="planet-type"></span></div>
+                <div>Resources: <span id="planet-resources"></span></div>
+                
+                <div id="planet-actions">
+                    <button id="btn-mine">Mine Resources</button>
+                    <button id="btn-refuel">Refuel (100 cr)</button>
+                    <button id="btn-sell">Sell Resources</button>
+                    <button id="btn-repair">Repair Ship (200 cr)</button>
+                </div>
+            </div>
+
+            <div id="combat-stats">
+                <div>Enemies Destroyed: <span id="kills">0</span></div>
+                <div>Weapon: Standard Laser</div>
+                <div>Controls: Click to shoot</div>
+            </div>
+            
+            <button id="btn-scan" style="margin-top: 15px;">Scan Area</button>
+        </div>
+        
+        <div id="message-box">
+            <p id="message-text">Welcome to Galactic Explorer!</p>
+        </div>
+
+        <div id="minimap">
+            <div id="minimap-player"></div>
+        </div>
+
+        <div id="game-over">
+            <h2>GAME OVER</h2>
+            <button id="btn-restart">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // Game state
+        const state = {
+            ship: {
+                x: 2000,
+                y: 2000,
+                angle: 0,
+                speed: 0,
+                maxSpeed: 5,
+                fuel: 100,
+                cargo: 0,
+                cargoCapacity: 100,
+                credits: 500,
+                health: 100,
+                nearPlanet: null
+            },
+            keys: {},
+            planets: [],
+            enemies: [],
+            projectiles: [],
+            gameWidth: 4000,
+            gameHeight: 4000,
+            viewportWidth: window.innerWidth,
+            viewportHeight: window.innerHeight,
+            stars: [],
+            scanCooldown: 0,
+            shootCooldown: 0,
+            enemySpawnRate: 0.005,
+            enemySpawnTimer: 0,
+            enemyMaxCount: 30,
+            cameraScale: 1,
+            kills: 0,
+            gameOver: false
+        };
+        
+        // DOM elements
+        const shipElement = document.getElementById('ship');
+        const gameContainer = document.getElementById('game-container');
+        const gameWorld = document.getElementById('game-world');
+        const positionElement = document.getElementById('position');
+        const speedElement = document.getElementById('speed');
+        const fuelElement = document.getElementById('fuel');
+        const cargoElement = document.getElementById('cargo');
+        const healthElement = document.getElementById('health');
+        const creditsElement = document.getElementById('credits');
+        const killsElement = document.getElementById('kills');
+        const fuelFillElement = document.getElementById('fuel-fill');
+        const cargoFillElement = document.getElementById('cargo-fill');
+        const healthFillElement = document.getElementById('health-fill');
+        const planetInfoElement = document.getElementById('planet-info');
+        const planetNameElement = document.getElementById('planet-name');
+        const planetTypeElement = document.getElementById('planet-type');
+        const planetResourcesElement = document.getElementById('planet-resources');
+        const messageBoxElement = document.getElementById('message-box');
+        const messageTextElement = document.getElementById('message-text');
+        const minimapElement = document.getElementById('minimap');
+        const minimapPlayerElement = document.getElementById('minimap-player');
+        const gameOverElement = document.getElementById('game-over');
+        const btnScan = document.getElementById('btn-scan');
+        const btnMine = document.getElementById('btn-mine');
+        const btnRefuel = document.getElementById('btn-refuel');
+        const btnSell = document.getElementById('btn-sell');
+        const btnRepair = document.getElementById('btn-repair');
+        const btnRestart = document.getElementById('btn-restart');
+        const starfieldCanvas = document.getElementById('starfield');
+        const starfieldCtx = starfieldCanvas.getContext('2d');
+        
+        // Set canvas dimensions
+        starfieldCanvas.width = state.gameWidth;
+        starfieldCanvas.height = state.gameHeight;
+        
+        // Planet types with their properties
+        const planetTypes = [
+            { name: 'Rocky', color: '#8B4513', resources: 'Iron, Titanium', value: 50 },
+            { name: 'Ice', color: '#A5F2F3', resources: 'Water, Methane', value: 40 },
+            { name: 'Lava', color: '#FF4500', resources: 'Platinum, Uranium', value: 100 },
+            { name: 'Gas Giant', color: '#DDA0DD', resources: 'Hydrogen, Helium', value: 30 },
+            { name: 'Earth-like', color: '#4169E1', resources: 'Organics, Rare Metals', value: 80 },
+            { name: 'Desert', color: '#DAA520', resources: 'Silicon, Rare Earths', value: 60 }
+        ];
+        
+        // Initialize game
+        function init() {
+            // Position ship in the center of the world
+            state.ship.x = state.gameWidth / 2;
+            state.ship.y = state.gameHeight / 2;
+            updateShipPosition();
+            
+            // Create stars
+            createStars(500);
+            
+            // Create initial planets
+            createPlanets(20);
+            
+            // Update minimap
+            updateMinimap();
+            
+            // Set up event listeners
+            window.addEventListener('keydown', e => state.keys[e.key] = true);
+            window.addEventListener('keyup', e => state.keys[e.key] = false);
+            window.addEventListener('resize', handleResize);
+            window.addEventListener('click', handleShoot);
+            
+            btnScan.addEventListener('click', scanArea);
+            btnMine.addEventListener('click', mineResources);
+            btnRefuel.addEventListener('click', refuelShip);
+            btnSell.addEventListener('click', sellResources);
+            btnRepair.addEventListener('click', repairShip);
+            btnRestart.addEventListener('click', restartGame);
+            
+            // Show welcome message
+            showMessage('Welcome to Galactic Explorer! Use WASD or arrow keys to move. Press Space to brake. Click to shoot enemies.', 5000);
+            
+            // Start game loop
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function handleResize() {
+            state.viewportWidth = window.innerWidth;
+            state.viewportHeight = window.innerHeight;
+            adjustCamera();
+        }
+        
+        function handleShoot(e) {
+            if (state.gameOver || state.shootCooldown > 0) return;
+            
+            // Create a projectile
+            const radians = state.ship.angle * Math.PI / 180;
+            const projectile = {
+                x: state.ship.x + Math.sin(radians) * 20,
+                y: state.ship.y - Math.cos(radians) * 20,
+                angle: state.ship.angle,
+                speed: 10,
+                element: document.createElement('div')
+            };
+            
+            // Create projectile element
+            projectile.element.className = 'projectile';
+            projectile.element.style.transform = `rotate(${projectile.angle}deg)`;
+            gameWorld.appendChild(projectile.element);
+            
+            state.projectiles.push(projectile);
+            state.shootCooldown = 10; // Cooldown in frames
+            
+            // Sound effect (simple)
+            try {
+                const audio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU9vT18A');
+                audio.volume = 0.2;
+                audio.play().catch(() => {});
+            } catch (e) {}
+        }
+        
+        function createStars(count) {
+            state.stars = [];
+            for (let i = 0; i < count; i++) {
+                const size = Math.random() * 2;
+                state.stars.push({
+                    x: Math.random() * state.gameWidth,
+                    y: Math.random() * state.gameHeight,
+                    size: size,
+                    brightness: Math.random() * 0.5 + 0.5
+                });
+            }
+        }
+        
+        function createPlanets(count) {
+            for (let i = 0; i < count; i++) {
+                createRandomPlanet();
+            }
+        }
+        
+        function createRandomPlanet() {
+            const size = 30 + Math.random() * 50;
+            const type = planetTypes[Math.floor(Math.random() * planetTypes.length)];
+            
+            // Make sure planet is not too close to existing planets
+            let x, y, validPosition;
+            do {
+                validPosition = true;
+                x = size + Math.random() * (state.gameWidth - size * 2);
+                y = size + Math.random() * (state.gameHeight - size * 2);
+                
+                // Check distance from ship's position
+                if (Math.sqrt(Math.pow(x - state.ship.x, 2) + Math.pow(y - state.ship.y, 2)) < 300) {
+                    validPosition = false;
+                    continue;
+                }
+                
+                // Check distance from other planets
+                for (const planet of state.planets) {
+                    const distance = Math.sqrt(Math.pow(x - planet.x, 2) + Math.pow(y - planet.y, 2));
+                    if (distance < (size + planet.size + 100)) {
+                        validPosition = false;
+                        break;
+                    }
+                }
+            } while (!validPosition);
+            
+            const planet = {
+                x: x,
+                y: y,
+                size: size,
+                type: type,
+                name: generatePlanetName(),
+                element: document.createElement('div'),
+                minimapElement: document.createElement('div')
+            };
+            
+            // Create planet element
+            planet.element.className = 'planet';
+            planet.element.style.width = planet.size + 'px';
+            planet.element.style.height = planet.size + 'px';
+            planet.element.style.left = planet.x - planet.size/2 + 'px';
+            planet.element.style.top = planet.y - planet.size/2 + 'px';
+            planet.element.style.backgroundColor = planet.type.color;
+            
+            // Create minimap element
+            planet.minimapElement.className = 'minimap-planet';
+            planet.minimapElement.style.left = (planet.x / state.gameWidth * minimapElement.offsetWidth) + 'px';
+            planet.minimapElement.style.top = (planet.y / state.gameHeight * minimapElement.offsetHeight) + 'px';
+            
+            gameWorld.appendChild(planet.element);
+            minimapElement.appendChild(planet.minimapElement);
+            state.planets.push(planet);
+        }
+        
+        function createEnemy() {
+            // Don't spawn if we're at max enemies
+            if (state.enemies.length >= state.enemyMaxCount) return;
+            
+            // Spawn enemies at random positions away from the player
+            let x, y;
+            do {
+                x = Math.random() * state.gameWidth;
+                y = Math.random() * state.gameHeight;
+            } while (
+                Math.abs(x - state.ship.x) < 500 && 
+                Math.abs(y - state.ship.y) < 500
+            );
+            
+            const enemy = {
+                x: x,
+                y: y,
+                angle: Math.random() * 360,
+                speed: 1 + Math.random() * 2,
+                health: 2,
+                element: document.createElement('div'),
+                minimapElement: document.createElement('div')
+            };
+            
+            // Create enemy element
+            enemy.element.className = 'enemy';
+            enemy.element.style.transform = `rotate(${enemy.angle}deg)`;
+            
+            // Create minimap element
+            enemy.minimapElement.className = 'minimap-enemy';
+            enemy.minimapElement.style.left = (enemy.x / state.gameWidth * minimapElement.offsetWidth) + 'px';
+            enemy.minimapElement.style.top = (enemy.y / state.gameHeight * minimapElement.offsetHeight) + 'px';
+            
+            gameWorld.appendChild(enemy.element);
+            minimapElement.appendChild(enemy.minimapElement);
+            state.enemies.push(enemy);
+        }
+        
+        function generatePlanetName() {
+            const prefixes = ['Xen', 'Tar', 'Zor', 'Ori', 'Kal', 'Neb', 'Pax', 'Lum', 'Quo', 'Zet', 'Ryx', 'Vex'];
+            const suffixes = ['ia', 'on', 'ux', 'ar', 'is', 'ex', 'or', 'an', 'ya', 'um', 'ix', 'oth'];
+            const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+            const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+            return prefix + suffix + '-' + Math.floor(Math.random() * 9);
+        }
+        
+        function updateShipPosition() {
+            shipElement.style.left = (state.ship.x - 20) + 'px';
+            shipElement.style.top = (state.ship.y - 20) + 'px';
+            shipElement.style.transform = `rotate(${state.ship.angle}deg)`;
+        }
+        
+        function drawStars() {
+            // Only draw stars in the visible area
+            const cameraX = state.ship.x - state.viewportWidth / 2 / state.cameraScale;
+            const cameraY = state.ship.y - state.viewportHeight / 2 / state.cameraScale;
+            const visibleWidth = state.viewportWidth / state.cameraScale;
+            const visibleHeight = state.viewportHeight / state.cameraScale;
+            
+            starfieldCtx.clearRect(cameraX, cameraY, visibleWidth, visibleHeight);
+            
+            state.stars.forEach(star => {
+                if (
+                    star.x >= cameraX - 10 && 
+                    star.x <= cameraX + visibleWidth + 10 &&
+                    star.y >= cameraY - 10 &&
+                    star.y <= cameraY + visibleHeight + 10
+                ) {
+                    starfieldCtx.fillStyle = `rgba(255, 255, 255, ${star.brightness})`;
+                    starfieldCtx.beginPath();
+                    starfieldCtx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                    starfieldCtx.fill();
+                }
+            });
+        }
+        
+        function adjustCamera() {
+            // Center the camera on the ship
+            const translateX = -state.ship.x + state.viewportWidth / 2 / state.cameraScale;
+            const translateY = -state.ship.y + state.viewportHeight / 2 / state.cameraScale;
+            
+            gameWorld.style.transform = `scale(${state.cameraScale}) translate(${translateX}px, ${translateY}px)`;
+        }
+        
+        function updateMinimap() {
+            // Update player position on minimap
+            minimapPlayerElement.style.left = (state.ship.x / state.gameWidth * minimapElement.offsetWidth) + 'px';
+            minimapPlayerElement.style.top = (state.ship.y / state.gameHeight * minimapElement.offsetHeight) + 'px';
+            
+            // Update enemy positions on minimap
+            state.enemies.forEach(enemy => {
+                if (enemy.minimapElement) {
+                    enemy.minimapElement.style.left = (enemy.x / state.gameWidth * minimapElement.offsetWidth) + 'px';
+                    enemy.minimapElement.style.top = (enemy.y / state.gameHeight * minimapElement.offsetHeight) + 'px';
+                }
+            });
+        }
+        
+        function createExplosion(x, y) {
+            const explosion = document.createElement('div');
+            explosion.className = 'explosion';
+            explosion.style.left = (x - 15) + 'px';
+            explosion.style.top = (y - 15) + 'px';
+            gameWorld.appendChild(explosion);
+            
+            // Remove explosion element after animation completes
+            setTimeout(() => {
+                if (explosion.parentNode) {
+                    explosion.parentNode.removeChild(explosion);
+                }
+            }, 500);
+            
+            // Sound effect (simple)
+            try {
+                const audio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU9vT18A');
+                audio.volume = 0.3;
+                audio.play().catch(() => {});
+            } catch (e) {}
+        }
+        
+        function gameLoop() {
+            if (!state.gameOver) {
+                // Handle ship movement
+                handleInput();
+                
+                // Update ship position based on speed
+                const radians = state.ship.angle * Math.PI / 180;
+                if (state.ship.speed !== 0 && state.ship.fuel > 0) {
+                    state.ship.x += Math.sin(radians) * state.ship.speed;
+                    state.ship.y -= Math.cos(radians) * state.ship.speed;
+                    
+                    // Keep ship in bounds
+                    state.ship.x = Math.max(0, Math.min(state.gameWidth, state.ship.x));
+                    state.ship.y = Math.max(0, Math.min(state.gameHeight, state.ship.y));
+                    
+                    // Consume fuel if moving
+                    if (state.ship.speed > 0) {
+                        state.ship.fuel = Math.max(0, state.ship.fuel - 0.02);
+                    }
+                }
+                
+                // Update UI
+                updateShipPosition();
+                positionElement.textContent = `${Math.floor(state.ship.x)}, ${Math.floor(state.ship.y)}`;
+                speedElement.textContent = state.ship.speed.toFixed(1);
+                fuelElement.textContent = Math.floor(state.ship.fuel);
+                cargoElement.textContent = `${state.ship.cargo}/${state.ship.cargoCapacity}`;
+                healthElement.textContent = Math.floor(state.ship.health);
+                creditsElement.textContent = state.ship.credits;
+                killsElement.textContent = state.kills;
+                
+                // Update progress bars
+                fuelFillElement.style.width = state.ship.fuel + '%';
+                cargoFillElement.style.width = (state.ship.cargo / state.ship.cargoCapacity * 100) + '%';
+                healthFillElement.style.width = state.ship.health + '%';
+                
+                // Check for planet proximity
+                checkPlanetProximity();
+                
+                // Update projectiles
+                updateProjectiles();
+                
+                // Update enemies
+                updateEnemies();
+                
+                // Spawn enemies
+                state.enemySpawnTimer++;
+                if (state.enemySpawnTimer > 60 && Math.random() < state.enemySpawnRate) {
+                    createEnemy();
+                    state.enemySpawnTimer = 0;
+                }
+                
+                // Update camera
+                adjustCamera();
+                
+                // Update minimap
+                updateMinimap();
+                
+                // Draw stars
+                drawStars();
+                
+                // Cooldown for scan button
+                if (state.scanCooldown > 0) {
+                    state.scanCooldown--;
+                    if (state.scanCooldown === 0) {
+                        btnScan.disabled = false;
+                        btnScan.textContent = 'Scan Area';
+                    }
+                }
+                
+                // Cooldown for shooting
+                if (state.shootCooldown > 0) {
+                    state.shootCooldown--;
+                }
+                
+                // Check for game over
+                if (state.ship.health <= 0) {
+                    gameOver();
+                }
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function updateProjectiles() {
+            for (let i = state.projectiles.length - 1; i >= 0; i--) {
+                const projectile = state.projectiles[i];
+                
+                // Update position
+                const radians = projectile.angle * Math.PI / 180;
+                projectile.x += Math.sin(radians) * projectile.speed;
+                projectile.y -= Math.cos(radians) * projectile.speed;
+                
+                // Update element
+                projectile.element.style.left = (projectile.x - 2) + 'px';
+                projectile.element.style.top = (projectile.y - 5) + 'px';
+                
+                // Check for out of bounds
+                if (
+                    projectile.x < 0 || 
+                    projectile.x > state.gameWidth || 
+                    projectile.y < 0 || 
+                    projectile.y > state.gameHeight
+                ) {
+                    // Remove projectile
+                    if (projectile.element.parentNode) {
+                        projectile.element.parentNode.removeChild(projectile.element);
+                    }
+                    state.projectiles.splice(i, 1);
+                    continue;
+                }
+                
+                // Check for collisions with enemies
+                let hitEnemy = false;
+                for (let j = state.enemies.length - 1; j >= 0; j--) {
+                    const enemy = state.enemies[j];
+                    const dx = enemy.x - projectile.x;
+                    const dy = enemy.y - projectile.y;
+                    const distance = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (distance < 15) { // 15 is rough // Enemy hit
+                        hitEnemy = true;
+                        enemy.health--;
+                        
+                        if (enemy.health <= 0) {
+                            // Enemy destroyed
+                            createExplosion(enemy.x, enemy.y);
+                            if (enemy.element.parentNode) {
+                                enemy.element.parentNode.removeChild(enemy.element);
+                            }
+                            if (enemy.minimapElement.parentNode) {
+                                enemy.minimapElement.parentNode.removeChild(enemy.minimapElement);
+                            }
+                            state.enemies.splice(j, 1);
+                            state.kills++;
+                            
+                            // Add credits
+                            state.ship.credits += 25;
+                        }
+                        
+                        // Remove projectile
+                        if (projectile.element.parentNode) {
+                            projectile.element.parentNode.removeChild(projectile.element);
+                        }
+                        state.projectiles.splice(i, 1);
+                        break;
+                    }
+                }
+                
+                if (hitEnemy) {
+                    break;
+                }
+            }
+        }
+        
+        function updateEnemies() {
+            for (let i = state.enemies.length - 1; i >= 0; i--) {
+                const enemy = state.enemies[i];
+                
+                // Calculate distance to player
+                const dx = state.ship.x - enemy.x;
+                const dy = state.ship.y - enemy.y;
+                const distance = Math.sqrt(dx*dx + dy*dy);
+                
+                // If player is within range, chase them
+                if (distance < 800) {
+                    // Calculate angle to player
+                    const angle = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+                    enemy.angle = angle;
+                    
+                    // Move toward player
+                    const radians = angle * Math.PI / 180;
+                    enemy.x += Math.sin(radians) * enemy.speed;
+                    enemy.y -= Math.cos(radians) * enemy.speed;
+                } else {
+                    // Random movement
+                    if (Math.random() < 0.01) {
+                        enemy.angle = Math.random() * 360;
+                    }
+                    
+                    const radians = enemy.angle * Math.PI / 180;
+                    enemy.x += Math.sin(radians) * (enemy.speed / 2);
+                    enemy.y -= Math.cos(radians) * (enemy.speed / 2);
+                }
+                
+                // Keep enemy in bounds
+                enemy.x = Math.max(0, Math.min(state.gameWidth, enemy.x));
+                enemy.y = Math.max(0, Math.min(state.gameHeight, enemy.y));
+                
+                // Update enemy element
+                enemy.element.style.left = (enemy.x - 15) + 'px';
+                enemy.element.style.top = (enemy.y - 15) + 'px';
+                enemy.element.style.transform = `rotate(${enemy.angle}deg)`;
+                
+                // Check for collision with player
+                const distanceToPlayer = Math.sqrt(
+                    Math.pow(state.ship.x - enemy.x, 2) + 
+                    Math.pow(state.ship.y - enemy.y, 2)
+                );
+                
+                if (distanceToPlayer < 30) {
+                    // Damage player
+                    state.ship.health -= 5;
+                    
+                    // Knock back player
+                    const knockbackAngle = Math.atan2(
+                        state.ship.y - enemy.y, 
+                        state.ship.x - enemy.x
+                    );
+                    state.ship.x += Math.cos(knockbackAngle) * 10;
+                    state.ship.y += Math.sin(knockbackAngle) * 10;
+                    
+                    // Destroy enemy
+                    createExplosion(enemy.x, enemy.y);
+                    if (enemy.element.parentNode) {
+                        enemy.element.parentNode.removeChild(enemy.element);
+                    }
+                    if (enemy.minimapElement.parentNode) {
+                        enemy.minimapElement.parentNode.removeChild(enemy.minimapElement);
+                    }
+                    state.enemies.splice(i, 1);
+                    
+                    showMessage('Your ship was damaged by an enemy!', 2000);
+                }
+            }
+        }
+        
+        function handleInput() {
+            // Rotate ship
+            if (state.keys['ArrowLeft'] || state.keys['a']) {
+                state.ship.angle -= 3;
+            }
+            if (state.keys['ArrowRight'] || state.keys['d']) {
+                state.ship.angle += 3;
+            }
+            
+            // Accelerate/decelerate
+            if ((state.keys['ArrowUp'] || state.keys['w']) && state.ship.fuel > 0) {
+                state.ship.speed = Math.min(state.ship.maxSpeed, state.ship.speed + 0.1);
+            } else if (state.ship.speed > 0) {
+                state.ship.speed = Math.max(0, state.ship.speed - 0.02);
+            }
+            
+            if ((state.keys['ArrowDown'] || state.keys['s']) && state.ship.fuel > 0) {
+                state.ship.speed = Math.max(-state.ship.maxSpeed/2, state.ship.speed - 0.1);
+            } else if (state.ship.speed < 0) {
+                state.ship.speed = Math.min(0, state.ship.speed + 0.02);
+            }
+            
+            // Space to brake
+            if (state.keys[' ']) {
+                if (state.ship.speed > 0) {
+                    state.ship.speed = Math.max(0, state.ship.speed - 0.2);
+                } else if (state.ship.speed < 0) {
+                    state.ship.speed = Math.min(0, state.ship.speed + 0.2);
+                }
+            }
+        }
+        
+        function checkPlanetProximity() {
+            let nearPlanet = null;
+            let minDistance = 70;
+            
+            for (const planet of state.planets) {
+                const dx = state.ship.x - planet.x;
+                const dy = state.ship.y - planet.y;
+                const distance = Math.sqrt(dx*dx + dy*dy);
+                
+                if (distance < planet.size + minDistance) {
+                    nearPlanet = planet;
+                    break;
+                }
+            }
+            
+            if (nearPlanet !== state.ship.nearPlanet) {
+                state.ship.nearPlanet = nearPlanet;
+                
+                if (nearPlanet) {
+                    // Show planet info
+                    planetNameElement.textContent = nearPlanet.name;
+                    planetTypeElement.textContent = nearPlanet.type.name;
+                    planetResourcesElement.textContent = nearPlanet.type.resources;
+                    planetInfoElement.style.display = 'block';
+                    
+                    showMessage(`Approaching ${nearPlanet.name}: a ${nearPlanet.type.name} planet with ${nearPlanet.type.resources}.`, 3000);
+                } else {
+                    // Hide planet info
+                    planetInfoElement.style.display = 'none';
+                }
+            }
+        }
+        
+        function scanArea() {
+            if (state.scanCooldown > 0) return;
+            
+            btnScan.disabled = true;
+            btnScan.textContent = 'Scanning...';
+            state.scanCooldown = 100;
+            
+            // Create 1-3 new planets
+            const newPlanetsCount = Math.floor(Math.random() * 3) + 1;
+            for (let i = 0; i < newPlanetsCount; i++) {
+                createRandomPlanet();
+            }
+            
+            showMessage(`Scan complete! Detected ${newPlanetsCount} new celestial bodies.`, 3000);
+        }
+        
+        function mineResources() {
+            if (!state.ship.nearPlanet) return;
+            
+            if (state.ship.cargo >= state.ship.cargoCapacity) {
+                showMessage('Cannot mine: Cargo hold is full!', 2000);
+                return;
+            }
+            
+            const mineAmount = Math.floor(Math.random() * 10) + 5;
+            const actualMined = Math.min(mineAmount, state.ship.cargoCapacity - state.ship.cargo);
+            state.ship.cargo += actualMined;
+            
+            showMessage(`Mined ${actualMined} units of ${state.ship.nearPlanet.type.resources}.`, 2000);
+        }
+        
+        function refuelShip() {
+            if (!state.ship.nearPlanet) return;
+            
+            if (state.ship.credits < 100) {
+                showMessage('Not enough credits to refuel!', 2000);
+                return;
+            }
+            
+            if (state.ship.fuel >= 100) {
+                showMessage('Fuel tank is already full!', 2000);
+                return;
+            }
+            
+            state.ship.credits -= 100;
+            state.ship.fuel = 100;
+            
+            showMessage('Ship refueled successfully!', 2000);
+        }
+        
+        function repairShip() {
+            if (!state.ship.nearPlanet) return;
+            
+            if (state.ship.credits < 200) {
+                showMessage('Not enough credits to repair ship!', 2000);
+                return;
+            }
+            
+            if (state.ship.health >= 100) {
+                showMessage('Ship is already fully repaired!', 2000);
+                return;
+            }
+            
+            state.ship.credits -= 200;
+            state.ship.health = 100;
+            
+            showMessage('Ship repaired successfully!', 2000);
+        }
+        
+        function sellResources() {
+            if (!state.ship.nearPlanet || state.ship.cargo <= 0) {
+                showMessage('No resources to sell!', 2000);
+                return;
+            }
+            
+            const value = state.ship.cargo * state.ship.nearPlanet.type.value / 10;
+            state.ship.credits += value;
+            state.ship.cargo = 0;
+            
+            showMessage(`Sold all resources for ${value} credits!`, 2000);
+        }
+        
+        function showMessage(text, duration = 3000) {
+            messageTextElement.textContent = text;
+            messageBoxElement.style.display = 'block';
+            
+            setTimeout(() => {
+                messageBoxElement.style.display = 'none';
+            }, duration);
+        }
+        
+        function gameOver() {
+            state.gameOver = true;
+            gameOverElement.style.display = 'flex';
+        }
+        
+        function restartGame() {
+            // Clear game elements
+            state.planets.forEach(planet => {
+                if (planet.element.parentNode) {
+                    planet.element.parentNode.removeChild(planet.element);
+                }
+                if (planet.minimapElement.parentNode) {
+                    planet.minimapElement.parentNode.removeChild(planet.minimapElement);
+                }
+            });
+            
+            state.enemies.forEach(enemy => {
+                if (enemy.element.parentNode) {
+                    enemy.element.parentNode.removeChild(enemy.element);
+                }
+                if (enemy.minimapElement.parentNode) {
+                    enemy.minimapElement.parentNode.removeChild(enemy.minimapElement);
+                }
+            });
+            
+            state.projectiles.forEach(projectile => {
+                if (projectile.element.parentNode) {
+                    projectile.element.parentNode.removeChild(projectile.element);
+                }
+            });
+            
+            // Reset state
+            state.ship.x = state.gameWidth / 2;
+            state.ship.y = state.gameHeight / 2;
+            state.ship.angle = 0;
+            state.ship.speed = 0;
+            state.ship.fuel = 100;
+            state.ship.cargo = 0;
+            state.ship.credits = 500;
+            state.ship.health = 100;
+            state.ship.nearPlanet = null;
+            
+            state.planets = [];
+            state.enemies = [];
+            state.projectiles = [];
+            state.kills = 0;
+            state.gameOver = false;
+            
+            // Clear stars and recreate
+            state.stars = [];
+            createStars(500);
+            
+            // Create new planets
+            createPlanets(20);
+            
+            // Reset UI
+            planetInfoElement.style.display = 'none';
+            gameOverElement.style.display = 'none';
+            
+            // Update ship position
+            updateShipPosition();
+            
+            // Update camera
+            adjustCamera();
+            
+            // Start game
+            showMessage('Welcome back to Galactic Explorer! Your mission continues...', 3000);
+        }
+        
+        // Start the game
+        init();
+    </script>
+</body>
+</html>
